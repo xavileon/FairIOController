@@ -1,33 +1,31 @@
 package cat.urv.deim.ast;
 
-import org.apfloat.Apfloat;
+import java.math.BigDecimal;
 
 public class ClassInfo implements Comparable<ClassInfo>{
-
-	private static int APFLOAT_PRECISSION = 16; // get from configuration
 	
 	private long classID;
-	private Apfloat weight;
+	private BigDecimal weight;
 	
 	public ClassInfo(long classID) {
 		this.classID = classID;
-		this.weight = new Apfloat(100, APFLOAT_PRECISSION);
+		this.weight = new BigDecimal(100);
 	}
 	
 	public long getClassID() {
 		return this.classID;
 	}
 	
-	public Apfloat getWeight() {
+	public BigDecimal getWeight() {
 		return this.weight;
 	}
 	
-	public void setWeight(Apfloat weight) {
+	public void setWeight(BigDecimal weight) {
 		this.weight = weight;
 	}
 
 	public String toString() {
-		return String.format("[class: %s, weight: %#s]", classID, weight);
+		return String.format("[class: %s, weight: %s]", classID, weight);
 	}
 	
 	@Override

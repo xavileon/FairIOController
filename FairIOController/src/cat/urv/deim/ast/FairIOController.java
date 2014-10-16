@@ -1,4 +1,6 @@
 package cat.urv.deim.ast;
+import java.math.BigDecimal;
+import java.math.MathContext;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -6,20 +8,19 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import org.apfloat.Apfloat;
-import org.apfloat.ApfloatMath;
-
-
 public class FairIOController {
-
+	
+	public static final int PRECISSION = 12;
+	public static MathContext CONTEXT = new MathContext(PRECISSION);
+	
 	// Private constants taken from configuration file
-	private static final int APFLOAT_PRECISSION = 12;
-	private static final Apfloat MIN_UTILITY_GAP = new Apfloat(0.001, APFLOAT_PRECISSION);
+	private static final BigDecimal MIN_UTILITY_GAP = new BigDecimal(0.001, CONTEXT);
 	
 	// Private constants for ease code reading
-	private static final Apfloat MIN_SHARE = new Apfloat(0.0001, APFLOAT_PRECISSION);
-	private static final Apfloat ONE_MINUS_MIN_SHARE = Apfloat.ONE.subtract(MIN_SHARE);
-	private static final Apfloat MIN_COEFF = MIN_SHARE.divide(ONE_MINUS_MIN_SHARE);
+	private static final BigDecimal MIN_SHARE = new BigDecimal(0.0001, CONTEXT);
+	private static final BigDecimal ONE_MINUS_MIN_SHARE = BigDecimal.ONE.subtract(MIN_SHARE, CONTEXT);
+	private static final BigDecimal MIN_COEFF = MIN_SHARE.divide(ONE_MINUS_MIN_SHARE, CONTEXT);
+	private static final BigDecimal TWO = new BigDecimal(2, CONTEXT);
 	
 	private Map<ClassInfo, Set<DatanodeInfo>> classToDatanodes;
 	private Map<DatanodeID, DatanodeInfo> nodeIDtoInfo;
@@ -52,7 +53,7 @@ public class FairIOController {
 			DatanodeInfo datanode = this.nodeIDtoInfo.get(datanodeID);
 			if (datanode != null) {
 				this.classToDatanodes.get(classInfo).remove(datanode);
-				datanode.updateClassWeight(classInfo, Apfloat.ZERO);
+				datanode.updateClassWeight(classInfo, BigDecimal.ZERO);
 				// Remove the class from memory if no more datanodes
 				if (this.classToDatanodes.size() == 0)
 					this.classToDatanodes.remove(classInfo);
@@ -62,7 +63,7 @@ public class FairIOController {
 	
 	/* Compute the corresponding shares for all classids */
 	public void computeShares() {
-		HashMap<ClassInfo, Apfloat> previousUtilities = new HashMap<ClassInfo, Apfloat>();
+		HashMap<ClassInfo, BigDecimal> previousUtilities = new HashMap<ClassInfo, BigDecimal>();
 		
 		while (!isUtilityConverged(previousUtilities)) {
 			for (ClassInfo classInfo : classToDatanodes.keySet()) {
@@ -81,7 +82,7 @@ public class FairIOController {
 	public void initializeShares(ClassInfo classInfo) {
 		int numDatanodes = classToDatanodes.get(classInfo).size();
 		for (DatanodeInfo datanode : classToDatanodes.get(classInfo)) {
-			Apfloat initWeight = classInfo.getWeight().divide(new Apfloat(numDatanodes, APFLOAT_PRECISSION));
+			BigDecimal initWeight = classInfo.getWeight().divide(new BigDecimal(numDatanodes));
 			datanode.updateClassWeight(classInfo, initWeight);
 		}
 	}
@@ -92,25 +93,25 @@ public class FairIOController {
 		for (ClassInfo classInfo : classToDatanodes.keySet()) {
 			res += "ClassInfo: "+classInfo+ "\n";
 			for (DatanodeInfo datanode : classToDatanodes.get(classInfo)) {
-				res += String.format("\t Datanode %s: %#s %#s\n", datanode, datanode.getClassWeight(classInfo), datanode.getClassShare(classInfo));
+				res += String.format("\t Datanode %s: %s %s\n", datanode, datanode.getClassWeight(classInfo), datanode.getClassShare(classInfo));
 			}
 		}
 		return res;
 	}
 	
-	private Apfloat getUtility(ClassInfo classInfo) {
-		Apfloat utility = Apfloat.ZERO;
+	private BigDecimal getUtility(ClassInfo classInfo) {
+		BigDecimal utility = BigDecimal.ZERO;
 		for (DatanodeInfo datanode : this.classToDatanodes.get(classInfo)) {
-			Apfloat cj = datanode.getCapacity();
-			Apfloat sij = datanode.getClassShare(classInfo);
+			BigDecimal cj = datanode.getCapacity();
+			BigDecimal sij = datanode.getClassShare(classInfo);
 			// sum_ut += disk.capacity * disk.get_share_byfile(fid)
 			utility = utility.add(cj.multiply(sij));
 		}
 		return utility;
 	}
 	
-	private Map<ClassInfo, Apfloat> getUtilities() {
-		HashMap<ClassInfo, Apfloat> utilities = new HashMap<ClassInfo, Apfloat>();
+	private Map<ClassInfo, BigDecimal> getUtilities() {
+		HashMap<ClassInfo, BigDecimal> utilities = new HashMap<ClassInfo, BigDecimal>();
 		for (ClassInfo classInfo : classToDatanodes.keySet()) {
 			utilities.put(classInfo, getUtility(classInfo));
 		}
@@ -120,9 +121,9 @@ public class FairIOController {
 	/* Return wether the current utility of all classes differ less than
 	 * min utility gap wrt previous utility.
 	 */
-	private boolean isUtilityConverged(Map<ClassInfo, Apfloat> previousUtilities) {
+	private boolean isUtilityConverged(Map<ClassInfo, BigDecimal> previousUtilities) {
 		boolean converged = true;
-		Map<ClassInfo, Apfloat> currentUtilities = getUtilities();
+		Map<ClassInfo, BigDecimal> currentUtilities = getUtilities();
 		// no previous utilities, so update with current ones and return not converged
 		if (previousUtilities.isEmpty()) {
 			previousUtilities.putAll(currentUtilities);
@@ -131,10 +132,9 @@ public class FairIOController {
 		
 		// Use current utilities to compare with previousUtilities
 		for (ClassInfo classInfo : currentUtilities.keySet()) {
-			Apfloat currentUtility = currentUtilities.get(classInfo);
-			Apfloat previousUtility = previousUtilities.get(classInfo);
-			Apfloat utilityGap = ApfloatMath.abs(
-					currentUtility.subtract(previousUtility));
+			BigDecimal currentUtility = currentUtilities.get(classInfo);
+			BigDecimal previousUtility = previousUtilities.get(classInfo);
+			BigDecimal utilityGap = currentUtility.subtract(previousUtility).abs();
 			//System.out.printf("%s %#s", classInfo, utilityGap);
 			if (utilityGap.compareTo(MIN_UTILITY_GAP) <= 0) {
 				//System.out.printf(" CONVERGED\n");
@@ -157,22 +157,22 @@ public class FairIOController {
 		
 		// Optimization algorithm per se
 		//sub_total_mins = sum([yj*min_coeff for _, _, _, yj, _, _ in marginals])
-		Apfloat sub_total_mins = Apfloat.ZERO;
+		BigDecimal sub_total_mins = BigDecimal.ZERO;
 		for (DatanodeInfo datanode : datanodes) {
-			Apfloat yj = datanode.getTotalWeight();
+			BigDecimal yj = datanode.getTotalWeight();
 			sub_total_mins = sub_total_mins.add(yj.multiply(MIN_COEFF));
 		}
-		Apfloat budget = classInfo.getWeight();
-		Apfloat sub_total_sqrt_wy = Apfloat.ZERO;
-		Apfloat sub_total_y = Apfloat.ZERO;
-		Apfloat last_coeff = Apfloat.ZERO;
+		BigDecimal budget = classInfo.getWeight();
+		BigDecimal sub_total_sqrt_wy = BigDecimal.ZERO;
+		BigDecimal sub_total_y = BigDecimal.ZERO;
+		BigDecimal last_coeff = BigDecimal.ZERO;
 		int k = 0;
 		
 		for (DatanodeInfo datanode : datanodes) {
-			Apfloat yj = datanode.getTotalWeight(); // total weights on this datanode, price
-			Apfloat cj = datanode.getCapacity(); // capacity for this datanode
+			BigDecimal yj = datanode.getTotalWeight(); // total weights on this datanode, price
+			BigDecimal cj = datanode.getCapacity(); // capacity for this datanode
 			// sqrt_wy = (yj * cj).sqrt()
-			Apfloat sqrt_wy = ApfloatMath.sqrt(yj.multiply(cj));
+			BigDecimal sqrt_wy = sqrt(yj.multiply(cj));
 			// sub_total_sqrt_wy += sqrt_wy;
 			sub_total_sqrt_wy = sub_total_sqrt_wy.add(sqrt_wy);
 			// sub_total_y += yj;
@@ -180,16 +180,16 @@ public class FairIOController {
 			// sub_total_mins -= yj*min_coeff
 			sub_total_mins = sub_total_mins.subtract(yj.multiply(MIN_COEFF));
 			// coeff = (budget - sub_total_mins + sub_total_y) / sub_total_sqrt_wy;
-			Apfloat coeff = budget.subtract(sub_total_mins)
+			BigDecimal coeff = budget.subtract(sub_total_mins)
 									.add(sub_total_y)
-									.divide(sub_total_sqrt_wy);
+									.divide(sub_total_sqrt_wy, CONTEXT);
 			// t = (sqrt_wy * coeff) - yj
-			Apfloat t = sqrt_wy.multiply(coeff).subtract(yj);
+			BigDecimal t = sqrt_wy.multiply(coeff).subtract(yj);
 			//tmin = t - ((min_share*yj / (1 - min_share))
-			Apfloat tmin = t.subtract(MIN_SHARE.multiply(yj)
-									           .divide(ONE_MINUS_MIN_SHARE));
+			BigDecimal tmin = t.subtract(MIN_SHARE.multiply(yj)
+									           .divide(ONE_MINUS_MIN_SHARE, CONTEXT));
 			// if tmin >= 0
-			if (tmin.compareTo(Apfloat.ZERO) >= 0) {
+			if (tmin.compareTo(BigDecimal.ZERO) >= 0) {
 				k++;
 				last_coeff = coeff;
 			}
@@ -200,10 +200,10 @@ public class FairIOController {
 		// Update weight on each node with xij higher than min_coeff
 		for (int i = 0; i < k; i++) {
 			DatanodeInfo datanode = datanodes.get(i);
-			Apfloat yj = datanode.getTotalWeight();
-			Apfloat cj = datanode.getCapacity();
+			BigDecimal yj = datanode.getTotalWeight();
+			BigDecimal cj = datanode.getCapacity();
 			// xij = ((yj*cj).sqrt() * last_coeff) - yj
-			Apfloat xij = ApfloatMath.sqrt(yj.multiply(cj))
+			BigDecimal xij = sqrt(yj.multiply(cj))
 									 .multiply(last_coeff)
 									 .subtract(yj);
 			datanode.updateClassWeight(classInfo, xij);
@@ -211,10 +211,23 @@ public class FairIOController {
 		// Update the rest of nodes with an xij = min_coeff
 		for (int i = k; i < datanodes.size(); i++) {
 			DatanodeInfo datanode = datanodes.get(i);
-			Apfloat yj = datanode.getTotalWeight();
+			BigDecimal yj = datanode.getTotalWeight();
 			// xij = yj * min_coeff
-			Apfloat xij = yj.multiply(MIN_COEFF);
+			BigDecimal xij = yj.multiply(MIN_COEFF);
 			datanode.updateClassWeight(classInfo, xij);
 		}
+	}
+	
+	private static BigDecimal sqrt(BigDecimal A) {
+	    BigDecimal x0 = new BigDecimal(0, CONTEXT);
+	    BigDecimal x1 = new BigDecimal(Math.sqrt(A.doubleValue()), CONTEXT);
+	    while (!x0.equals(x1)) {
+	        x0 = x1;
+	        x1 = A.divide(x0, CONTEXT);
+	        x1 = x1.add(x0);
+	        x1 = x1.divide(TWO, CONTEXT);
+
+	    }
+	    return x1;
 	}
 }

@@ -1,10 +1,9 @@
 package cat.urv.deim.ast;
 
-import org.apfloat.Apfloat;
+import java.math.BigDecimal;
+
 
 public class TestFairIOController {
-
-	private static final long APFLOAT_PRECISSION = 12;
 
 	/**
 	 * @param args
@@ -15,11 +14,11 @@ public class TestFairIOController {
 		DatanodeInfo d2 = new DatanodeInfo(new DatanodeID(), 200);
 		DatanodeInfo d3 = new DatanodeInfo(new DatanodeID(), 200);
 		ClassInfo c1 = new ClassInfo(1);
-		c1.setWeight(new Apfloat(100, APFLOAT_PRECISSION));
+		c1.setWeight(new BigDecimal(100));
 		ClassInfo c2 = new ClassInfo(2);
-		c2.setWeight(new Apfloat(200, APFLOAT_PRECISSION));
+		c2.setWeight(new BigDecimal(200));
 		ClassInfo c3 = new ClassInfo(3);
-		c3.setWeight(new Apfloat(400, APFLOAT_PRECISSION));
+		c3.setWeight(new BigDecimal(400));
 		// Give an initial weight of 100 (arbitrary)
 		// We should check the weight of the file on the namenode
 		controller.addDatanodeToClass(c1, d3);
