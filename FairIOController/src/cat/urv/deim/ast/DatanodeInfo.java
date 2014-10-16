@@ -45,6 +45,9 @@ public class DatanodeInfo implements Comparable<DatanodeInfo>{
 	}
 	
 	public BigDecimal getTotalWeight() {
+		if (this.totalWeight.equals(BigDecimal.ZERO)) {
+			return FairIOController.MIN_TOTAL_WEIGHT;
+		}
 		return this.totalWeight;
 	}
 	
@@ -55,7 +58,7 @@ public class DatanodeInfo implements Comparable<DatanodeInfo>{
 	}
 	
 	public String toString() {
-		return String.format("[nid: %s, cap: %s]", nodeID, capacity);
+		return String.format("[nid: %s, cap: %s]", nodeID, FairIOController.decimalFormat.format(capacity));
 	}
 	
 	

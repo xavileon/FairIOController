@@ -1,6 +1,7 @@
 package cat.urv.deim.ast;
 import java.math.BigDecimal;
 import java.math.MathContext;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -10,8 +11,10 @@ import java.util.Set;
 
 public class FairIOController {
 	
-	public static final int PRECISSION = 12;
+	public static final int PRECISSION = 32;
 	public static MathContext CONTEXT = new MathContext(PRECISSION);
+	public static final BigDecimal MIN_TOTAL_WEIGHT = new BigDecimal(0.000000000000000001, CONTEXT);
+	public static DecimalFormat decimalFormat = new DecimalFormat("#.00000");
 	
 	// Private constants taken from configuration file
 	private static final BigDecimal MIN_UTILITY_GAP = new BigDecimal(0.001, CONTEXT);
@@ -93,7 +96,9 @@ public class FairIOController {
 		for (ClassInfo classInfo : classToDatanodes.keySet()) {
 			res += "ClassInfo: "+classInfo+ "\n";
 			for (DatanodeInfo datanode : classToDatanodes.get(classInfo)) {
-				res += String.format("\t Datanode %s: %s %s\n", datanode, datanode.getClassWeight(classInfo), datanode.getClassShare(classInfo));
+				BigDecimal classWeight = datanode.getClassWeight(classInfo);
+				BigDecimal classShare = datanode.getClassShare(classInfo);
+				res += String.format("\t Datanode %s: %s %s\n", datanode, FairIOController.decimalFormat.format(classWeight), FairIOController.decimalFormat.format(classShare));
 			}
 		}
 		return res;

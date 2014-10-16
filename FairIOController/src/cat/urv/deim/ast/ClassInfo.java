@@ -25,7 +25,7 @@ public class ClassInfo implements Comparable<ClassInfo>{
 	}
 
 	public String toString() {
-		return String.format("[class: %s, weight: %s]", classID, weight);
+		return String.format("[class: %s, weight: %s]", classID, FairIOController.decimalFormat.format(weight));
 	}
 	
 	@Override
