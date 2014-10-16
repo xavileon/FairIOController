@@ -14,7 +14,7 @@ public class FairIOController {
 	public static final int PRECISSION = 32;
 	public static MathContext CONTEXT = new MathContext(PRECISSION);
 	public static final BigDecimal MIN_TOTAL_WEIGHT = new BigDecimal(0.000000000000000001, CONTEXT);
-	public static DecimalFormat decimalFormat = new DecimalFormat("#.00000");
+	public static DecimalFormat decimalFormat = new DecimalFormat("0.00000");
 	
 	// Private constants taken from configuration file
 	private static final BigDecimal MIN_UTILITY_GAP = new BigDecimal(0.001, CONTEXT);
