@@ -40,4 +40,8 @@ public class ClassInfo implements Comparable<ClassInfo>{
 		else return false;
 	}
 	
+	public int hashCode() {
+		return new Long(this.classID).hashCode();
+	}
+	
 }

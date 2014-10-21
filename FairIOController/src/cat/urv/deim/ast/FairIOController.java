@@ -11,13 +11,13 @@ import java.util.Set;
 
 public class FairIOController {
 	
-	public static final int PRECISSION = 32;
+	public static final int PRECISSION = 64;
 	public static MathContext CONTEXT = new MathContext(PRECISSION);
-	public static final BigDecimal MIN_TOTAL_WEIGHT = new BigDecimal(0.000000000000000001, CONTEXT);
-	public static DecimalFormat decimalFormat = new DecimalFormat("0.00000");
+	public static final BigDecimal MIN_TOTAL_WEIGHT = new BigDecimal(0.00000000000000000000000000000000000000000000001, CONTEXT);
+	public static DecimalFormat decimalFormat = new DecimalFormat("0.0000");
 	
 	// Private constants taken from configuration file
-	private static final BigDecimal MIN_UTILITY_GAP = new BigDecimal(0.001, CONTEXT);
+	private static final BigDecimal MIN_UTILITY_GAP = new BigDecimal(0.0001, CONTEXT);
 	
 	// Private constants for ease code reading
 	private static final BigDecimal MIN_SHARE = new BigDecimal(0.0001, CONTEXT);
@@ -67,25 +67,30 @@ public class FairIOController {
 	/* Compute the corresponding shares for all classids */
 	public void computeShares() {
 		HashMap<ClassInfo, BigDecimal> previousUtilities = new HashMap<ClassInfo, BigDecimal>();
-		
+
+//		int round = 0;
 		while (!isUtilityConverged(previousUtilities)) {
+//			System.out.println(round++);
+//			System.out.println(this);
 			for (ClassInfo classInfo : classToDatanodes.keySet()) {
 				computeSharesByClass(classInfo);
 			}
-			//System.out.println(this);
+			
 		}
 	}
 	
+	@Deprecated
 	public void initializeAllShares() {
 		for (ClassInfo classInfo: classToDatanodes.keySet()) {
 			initializeShares(classInfo);
 		}
 	}
 	
+	@Deprecated
 	public void initializeShares(ClassInfo classInfo) {
 		int numDatanodes = classToDatanodes.get(classInfo).size();
 		for (DatanodeInfo datanode : classToDatanodes.get(classInfo)) {
-			BigDecimal initWeight = classInfo.getWeight().divide(new BigDecimal(numDatanodes));
+			BigDecimal initWeight = classInfo.getWeight().divide(new BigDecimal(numDatanodes), CONTEXT);
 			datanode.updateClassWeight(classInfo, initWeight);
 		}
 	}
@@ -129,6 +134,10 @@ public class FairIOController {
 	private boolean isUtilityConverged(Map<ClassInfo, BigDecimal> previousUtilities) {
 		boolean converged = true;
 		Map<ClassInfo, BigDecimal> currentUtilities = getUtilities();
+		
+		if (currentUtilities.isEmpty())
+			return true;
+		
 		// no previous utilities, so update with current ones and return not converged
 		if (previousUtilities.isEmpty()) {
 			previousUtilities.putAll(currentUtilities);
@@ -140,19 +149,15 @@ public class FairIOController {
 			BigDecimal currentUtility = currentUtilities.get(classInfo);
 			BigDecimal previousUtility = previousUtilities.get(classInfo);
 			BigDecimal utilityGap = currentUtility.subtract(previousUtility).abs();
-			//System.out.printf("%s %#s", classInfo, utilityGap);
 			if (utilityGap.compareTo(MIN_UTILITY_GAP) <= 0) {
-				//System.out.printf(" CONVERGED\n");
 				converged = converged && true;
 			}
 			else {
-				//System.out.println(" NOT CONVERGED\n");
 				converged = false;
 			}
 		}
 		previousUtilities.clear();
 		previousUtilities.putAll(currentUtilities);
-		//System.out.println("FINAL ROUND: "+converged);
 		return converged;
 	}
 	
