@@ -12,6 +12,11 @@ public class ClassInfo implements Comparable<ClassInfo>{
 		this.weight = new BigDecimal(100);
 	}
 	
+	public ClassInfo(long classID, float weight) {
+		this.classID = classID;
+		this.weight = new BigDecimal(weight);
+	}
+	
 	public long getClassID() {
 		return this.classID;
 	}

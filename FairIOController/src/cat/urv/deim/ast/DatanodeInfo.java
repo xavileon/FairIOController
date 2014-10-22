@@ -4,12 +4,18 @@ import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.hadoop.hdfs.protocol.DatanodeID;
+
 public class DatanodeInfo implements Comparable<DatanodeInfo>{
 
 	private DatanodeID nodeID;
 	private BigDecimal capacity; // I/O max throughput in Mb/s
 	private Map<ClassInfo, BigDecimal> weightByClass;
 	private BigDecimal totalWeight;
+	
+	public DatanodeInfo(DatanodeID nodeID) {
+		this(nodeID, 100);
+	}
 	
 	public DatanodeInfo(DatanodeID nodeID, float capacity) {
 		this.nodeID = nodeID;

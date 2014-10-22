@@ -9,6 +9,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.hadoop.hdfs.protocol.DatanodeID;
+
 public class FairIOController {
 	
 	public static final int PRECISSION = 64;
@@ -24,37 +26,67 @@ public class FairIOController {
 	private static final BigDecimal ONE_MINUS_MIN_SHARE = BigDecimal.ONE.subtract(MIN_SHARE, CONTEXT);
 	private static final BigDecimal MIN_COEFF = MIN_SHARE.divide(ONE_MINUS_MIN_SHARE, CONTEXT);
 	private static final BigDecimal TWO = new BigDecimal(2, CONTEXT);
+	private static final float DEFAULT_WEIGHT = 100;
 	
 	private Map<ClassInfo, Set<DatanodeInfo>> classToDatanodes;
 	private Map<DatanodeID, DatanodeInfo> nodeIDtoInfo;
 	private MarginalsComparator datanodeInfoComparator;
+	private HashMap<String, DatanodeID> nodeUuidtoNodeID;
 	
 	public FairIOController() {
 		this.classToDatanodes = new HashMap<ClassInfo, Set<DatanodeInfo>>();
 		this.nodeIDtoInfo = new HashMap<DatanodeID, DatanodeInfo>();
+		this.nodeUuidtoNodeID = new HashMap<String, DatanodeID>();
 		this.datanodeInfoComparator = new MarginalsComparator();
 	}
 	
+	public void registerDatanode(DatanodeID datanodeID) {
+		if (!this.nodeUuidtoNodeID.containsKey(datanodeID.getDatanodeUuid())) {
+			DatanodeInfo datanode = new DatanodeInfo(datanodeID);
+			this.nodeUuidtoNodeID.put(datanodeID.getDatanodeUuid(), datanodeID);
+			this.nodeIDtoInfo.put(datanodeID, datanode);
+		}
+	}
+	
+	public boolean existsClassInfo(long classId) {
+		return this.classToDatanodes.containsKey(new ClassInfo(classId));
+	}
+	
+	public void setClassWeight(long classId) {
+		setClassWeight(classId, FairIOController.DEFAULT_WEIGHT);
+	}
+	
+	public void setClassWeight(long classId, float weight) {
+		ClassInfo classInfo = new ClassInfo(classId, weight);
+		Set<DatanodeInfo> datanodes = this.classToDatanodes.get(classInfo);
+		if (datanodes == null)
+			datanodes = new HashSet<DatanodeInfo>();
+		this.classToDatanodes.put(classInfo, datanodes);		
+	}
+	
 	/* Create a datanode datatype identified with datanodeID to a given class */
-	public void addDatanodeToClass(ClassInfo classInfo, DatanodeInfo datanode) {
-		if (!this.nodeIDtoInfo.containsKey(datanode.getDatanodeID())) {
-			this.nodeIDtoInfo.put(datanode.getDatanodeID(), datanode);
-		}
+	/* datanodeID should have been previously registered */
+	/* classInfo should have been previously registered */
+	public void addDatanodeToClass(long classId, String datanodeUUID) throws Exception {
+		ClassInfo classInfo = new ClassInfo(classId);
+		if (!this.nodeUuidtoNodeID.containsKey(datanodeUUID))
+			throw new Exception("Node "+datanodeUUID+" not registered");
 		
-		if (!this.classToDatanodes.containsKey(classInfo)) {
-			this.classToDatanodes.put(classInfo, new HashSet<DatanodeInfo>());
-			
-		}
+		DatanodeID datanodeID = this.nodeUuidtoNodeID.get(datanodeUUID);
+		DatanodeInfo datanode = this.nodeIDtoInfo.get(datanodeID);
 		
 		this.classToDatanodes.get(classInfo).add(datanode);
 	}
 	
 	/* remove the datanode from a given class, put its weight to ZERO because
 	 * not interested anymore */
-	public void removeDatanodeFromClass(ClassInfo classInfo, DatanodeID datanodeID) {
+	/* datanodeID should have been previously registered */
+	public void removeDatanodeFromClass(long classId, String datanodeUUID) {
+		ClassInfo classInfo = new ClassInfo(classId);
 		if (this.classToDatanodes.containsKey(classInfo)) {
-			DatanodeInfo datanode = this.nodeIDtoInfo.get(datanodeID);
-			if (datanode != null) {
+			DatanodeID datanodeID = this.nodeUuidtoNodeID.get(datanodeUUID);
+			if (datanodeID != null) {
+				DatanodeInfo datanode = this.nodeIDtoInfo.get(datanodeID);
 				this.classToDatanodes.get(classInfo).remove(datanode);
 				datanode.updateClassWeight(classInfo, BigDecimal.ZERO);
 				// Remove the class from memory if no more datanodes
@@ -65,7 +97,7 @@ public class FairIOController {
 	}
 	
 	/* Compute the corresponding shares for all classids */
-	public void computeShares() {
+	public synchronized void computeShares() {
 		HashMap<ClassInfo, BigDecimal> previousUtilities = new HashMap<ClassInfo, BigDecimal>();
 
 //		int round = 0;
@@ -87,7 +119,7 @@ public class FairIOController {
 	}
 	
 	@Deprecated
-	public void initializeShares(ClassInfo classInfo) {
+	private void initializeShares(ClassInfo classInfo) {
 		int numDatanodes = classToDatanodes.get(classInfo).size();
 		for (DatanodeInfo datanode : classToDatanodes.get(classInfo)) {
 			BigDecimal initWeight = classInfo.getWeight().divide(new BigDecimal(numDatanodes), CONTEXT);
