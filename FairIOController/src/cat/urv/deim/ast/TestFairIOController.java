@@ -10,9 +10,11 @@ public class TestFairIOController {
 	 * @throws Exception 
 	 */
 	public static void main(String[] args) throws Exception {
+		
 		FairIOController controller = new FairIOController();
 		
 		controller.computeShares();
+		System.out.println("AFTER with nothing \n"+ controller);
 		//String ipAddr, String hostName, String datanodeUuid, int xferPort, int infoPort, int infoSecurePort, int ipcPort
 		DatanodeID id1 = new DatanodeID("192.168.0.1", "d1", "d1", 1234, 1235, 1236, 1237);
 		DatanodeID id2 = new DatanodeID("192.168.0.2", "d2", "d2", 1234, 1235, 1236, 1237);
@@ -29,6 +31,9 @@ public class TestFairIOController {
 		controller.setClassWeight(2,  200);
 		controller.setClassWeight(3,  400);
 		controller.setClassWeight(4,  400);
+		
+		controller.computeShares();
+		System.out.println("AFTER registering without adding nodes \n"+ controller);
 		
 		// Give an initial weight of 100 (arbitrary)
 		// We should check the weight of the file on the namenode

@@ -56,6 +56,13 @@ public class FairIOController {
 		setClassWeight(classId, FairIOController.DEFAULT_WEIGHT);
 	}
 	
+	public float getClassWeight(long classId, String nodeID) {
+		ClassInfo classInfo = new ClassInfo(classId);
+		DatanodeID datanodeID = this.nodeUuidtoNodeID.get(nodeID);
+		DatanodeInfo datanodeInfo = this.nodeIDtoInfo.get(datanodeID);
+		return datanodeInfo.getClassWeight(classInfo).floatValue();
+	}
+	
 	public void setClassWeight(long classId, float weight) {
 		ClassInfo classInfo = new ClassInfo(classId, weight);
 		Set<DatanodeInfo> datanodes = this.classToDatanodes.get(classInfo);
